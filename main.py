@@ -1,4 +1,5 @@
 import pygame
+from pathfinding import bfs, neighbors #Importing the bfs and neighbors functions from pathfinding.py
 
 pygame.init()  # boots pygame's internals; must run before anything else
 screen = pygame.display.set_mode((800, 480))  # returns the window surface we'll draw onto
@@ -61,6 +62,10 @@ while running:
                 tool = "start"
             elif event.key == pygame.K_e:  # end point tool
                 tool = "end"
+            elif event.key == pygame.K_SPACE: # spacebar triggers pathfinding
+                path = bfs(start, end, walls, ROWS, COLS) 
+                print(path) # Confirming functionality 
+                
 
 
     screen.fill((14, 31, 61))  # must run before the grid loop, since draws layer on top
