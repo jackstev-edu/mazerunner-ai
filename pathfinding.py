@@ -10,8 +10,11 @@ def neighbors(cell, walls, rows, cols):
 def bfs(start, end, walls, rows, cols):
     frontier = deque([start])  # queue for BFS
     came_from = {start: None} # dictionary to track the path
+    order = [] # Order of exploration
+    
     while frontier:
         current = frontier.popleft() # Explore the next cell in the queue
+        order.append(current) # Track the order of exploration
         if current == end: # If we reached the end, reconstruct the path
             break
         for nxt in neighbors(current, walls, rows, cols): 
@@ -20,14 +23,14 @@ def bfs(start, end, walls, rows, cols):
                 frontier.append(nxt) # add to the queue for exploration
 
     if end not in came_from:
-        return None # End was not reached, no path exists
+        return None, order # No path exits
 
     # reconstructting the path from end to start using the came_from dictionary
     path = [end] 
     while path[-1] != start:
         path.append(came_from[path[-1]]) # backtrack using the came_from dictionary
     path.reverse() # reverse the path to get it from start to end
-    return path
+    return (path, order) # Return both the path and the order of exploration
 
 # Dijkstra's algorithm to find the shortest path from start to end from BFS
 # but with a priority queue to handle weighted graphs
@@ -36,11 +39,13 @@ def dijkstra(start, end, walls, mud, rows, cols):
     frontier = [(0, start)] 
     came_from = {start: None} 
     cost_so_far = {start: 0} 
+    order = [] # Order of exploration
 
     while frontier:
         current_cost, current = heapq.heappop(frontier) # get the lowest cost cell
         if current_cost > cost_so_far[current]: # 
             continue # skip if we already found a better path
+        order.append(current) # Track the order of exploration
         if current == end:
             break # If we reached the end leave the loop
 
@@ -53,14 +58,14 @@ def dijkstra(start, end, walls, mud, rows, cols):
                 heapq.heappush(frontier, (new_cost, nxt)) # add to the priority queue
 
     if end not in came_from:
-        return None # No Path exists
+        return None, order # No Path exists
 
     # reconstructing the path from end to start using the came_from dictionary
     path = [end]
     while path[-1] != start:
         path.append(came_from[path[-1]]) # backtrack using the came_from dictionary
     path.reverse() # From start to end
-    return path
+    return (path, order) # Return both the path and the order of exploration
 
 # Set up for A* algorithm
 def heuristic(a, b):
@@ -72,11 +77,13 @@ def astar(start, end, walls, mud, rows, cols):
     frontier = [(heuristic(start, end), 0, start)] # (f_score, g_score, cell)
     came_from = {start: None}
     cost_so_far = {start: 0}
+    order = [] # Order of exploration
 
     while frontier:
         _, current_cost, current = heapq.heappop(frontier) # get the lowest priority cell
         if current_cost > cost_so_far[current]:
             continue # skip if we already found a better path
+        order.append(current) # Track the order of exploration
         if current == end:
             break # If we reached the end leave the loop
 
@@ -90,10 +97,10 @@ def astar(start, end, walls, mud, rows, cols):
                 heapq.heappush(frontier, (priority, new_cost, nxt)) # add to the priority queue
 
     if end not in came_from:
-        return None # No Path exists
+        return None, order # No Path exists
 
     path = [end]
     while path[-1] != start:
         path.append(came_from[path[-1]]) # backtrack using the came_from dictionary
     path.reverse() # From start to end
-    return path
+    return (path, order) # Return both the path and the order of exploration
