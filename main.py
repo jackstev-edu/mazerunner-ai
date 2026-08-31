@@ -1,5 +1,5 @@
 import pygame
-from pathfinding import bfs, neighbors #Importing the bfs and neighbors functions from pathfinding.py
+from pathfinding import bfs, dijkstra, astar # all three pathfinding algorithms from pathfinding.py
 
 pygame.init()  # boots pygame's internals; must run before anything else
 screen = pygame.display.set_mode((800, 480))  # returns the window surface we'll draw onto
@@ -14,6 +14,7 @@ start = (2,2) # Maze starting point
 end = (ROWS-3, COLS-3) #
 tool = "wall" # current tool selected for painting
 painting = False # enables painting when mouse click is held
+algorithm = "bfs" # default pathfinding algorithm
 
 # translating pixel coordinates to grid coordinates
 def cell_at_pixel(pos): 
@@ -62,9 +63,20 @@ while running:
                 tool = "start"
             elif event.key == pygame.K_e:  # end point tool
                 tool = "end"
-            elif event.key == pygame.K_SPACE: # spacebar triggers pathfinding
-                path = bfs(start, end, walls, ROWS, COLS) 
-                print(path) # Confirming functionality 
+            elif event.key == pygame.K_1: # select BFS algorithm
+                algorithm = "bfs"
+            elif event.key == pygame.K_2: # select Dijkstra's algorithm
+                algorithm = "dijkstra"  
+            elif event.key == pygame.K_3:  # select A* algorithm
+                algorithm = "astar"
+            elif event.key == pygame.K_SPACE:
+                if algorithm == "bfs":
+                    path = bfs(start, end, walls, ROWS, COLS)
+                elif algorithm == "dijkstra":
+                    path = dijkstra(start, end, walls, mud, ROWS, COLS)
+                elif algorithm == "astar":
+                    path = astar(start, end, walls, mud, ROWS, COLS)
+                print(path)  # still temporary -- we'll draw this instead of printing it next
                 
 
 
