@@ -1,15 +1,14 @@
 # ui.py
 # Button layout and drawing for the on-screen toolbar. Takes whatever it
 # needs (screen, font, which option is active) as arguments instead of
-# reaching into grid_state or main directly -- keeps it reusable.
+# reaching into grid_state or main directly, keeps it reusable.
 
 import pygame
 from grid_state import ROWS, CELL_SIZE
 
 GRID_HEIGHT = ROWS * CELL_SIZE # 480
-UI_HEIGHT = 100 # height of the user interface area at the bottom of the screen
+UI_HEIGHT = 130 # taller than before, room for a status/stats row below the buttons
 
-# Define the buttons for tools and algorithms, along with their positions and sizes
 TOOL_BUTTONS = [
     {"label": "Wall",  "tool": "wall",  "rect": pygame.Rect(10, GRID_HEIGHT + 10, 80, 32)},
     {"label": "Mud",   "tool": "mud",   "rect": pygame.Rect(100, GRID_HEIGHT + 10, 80, 32)},
@@ -24,9 +23,22 @@ ALGO_BUTTONS = [
 ]
 RUN_BUTTON = pygame.Rect(300, GRID_HEIGHT + 52, 100, 32)
 
-# Function to draw a button with a label and highlight it if it's active
-def draw_button(screen, font, rect, label, active):
-    color = (95, 212, 232) if active else (26, 55, 105)     # highlight whichever option is currently selected
+def draw_panel_background(screen):
+    panel_rect = pygame.Rect(0, GRID_HEIGHT, screen.get_width(), UI_HEIGHT)
+    pygame.draw.rect(screen, (19, 42, 82), panel_rect)          # lighter navy, separates toolbar from grid
+    pygame.draw.line(screen, (42, 82, 136), (0, GRID_HEIGHT), (screen.get_width(), GRID_HEIGHT), width=1)  # divider line
+
+def draw_button(screen, font, rect, label, active, hover=False):
+    if active:
+        color = (95, 212, 232)              # cyan, currently selected
+    elif hover:
+        color = (35, 70, 130)                # lighter navy, cursor is over it but not clicked
+    else:
+        color = (26, 55, 105)                # default inactive navy
     pygame.draw.rect(screen, color, rect, border_radius=4)
     text = font.render(label, True, (233, 239, 251))
     screen.blit(text, text.get_rect(center=rect.center))      # centers the label inside the button
+
+def draw_status(screen, font, message, color):
+    text = font.render(message, True, color)
+    screen.blit(text, (10, GRID_HEIGHT + 96))   # sits in the third row, below both button rows
