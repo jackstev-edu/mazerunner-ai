@@ -31,10 +31,10 @@ def apply_tool(cell):
     global start, end  # Updating preinitialized start and end points - hence "global"
     if tool == "wall":
         mud.discard(cell)  # Discard obstabcle before overriding with wall
-        walls.symmetric_difference_update({cell})
+        walls.add(cell)           # always adds -- never removes, even if touched twice in one drag
     elif tool == "mud":
         walls.discard(cell)  # Discard obstabcle before overriding with mud
-        mud.symmetric_difference_update({cell})
+        mud.add(cell)
     elif tool == "erase": # Indiscriminate removal of any obstacles from the cell
         walls.discard(cell)
         mud.discard(cell)
