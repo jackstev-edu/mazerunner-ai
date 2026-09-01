@@ -1,6 +1,6 @@
 # MazeRunner
 
-An interactive pathfinding visualizer built for Project 0.
+An interactive pathfinding visualizer built for Project 0. Claude was used as a coding agent to help implement unfamiliar libraries and Python syntax, while system design and project direction were led by the developer.
 
 - **Intelligence**: Demonstrating three pathfinding algorithms (BFS, Dijkstra, A*) reasoning over a user generated maze and obstacle course with different cost weights.
 - **Interaction**: Pick a tool and an algorithm, draw a maze and observe the search animation optimize the path.
