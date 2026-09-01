@@ -7,13 +7,17 @@ from pathfinding import bfs, dijkstra, astar # all three pathfinding algorithms 
 import time                                    # for timing how long each search takes
 import grid_state
 from grid_state import COLS, ROWS, CELL_SIZE, apply_tool, cell_at_pixel
-from ui import GRID_HEIGHT, UI_HEIGHT, TOOL_BUTTONS, ALGO_BUTTONS, RUN_BUTTON, draw_button, draw_panel_background, draw_status
+import ui   # module-level import, referenced as ui.X
 
 pygame.init()  # boots pygame's internals; must run before anything else
 
-screen = pygame.display.set_mode((COLS * CELL_SIZE, GRID_HEIGHT + UI_HEIGHT))  # tall enough for buttons and status row
+screen = pygame.display.set_mode((COLS * CELL_SIZE, ui.GRID_HEIGHT + ui.UI_HEIGHT))  # fixed size, back to original
 pygame.display.set_caption("Maze Runner")
-font = pygame.font.SysFont("couriernew", 16) # Renders button labels
+clock = pygame.time.Clock()  # tracks real time between frames, used to pace the animation
+
+font = pygame.font.SysFont("couriernew", 18, bold=True)          # button labels, bold and bigger for legibility
+heading_font = pygame.font.SysFont("couriernew", 14, bold=True)  # section headings, bold
+small_font = pygame.font.SysFont("couriernew", 14)                 # blurbs and status text, bigger but not bold
 
 painting = False # enables painting when mouse click is held
 algorithm = "bfs" # default pathfinding algorithm
@@ -22,12 +26,16 @@ explored_order = [] # Initially no exploration order exists
 reveal_index = 0 # Index to reveal explored cells one by one
 path_reveal_index = 0 # Index to reveal path cells one by one
 animating = False # Flag to indicate if animation is in progress
+REVEAL_DELAY_MS = 25       # milliseconds between each explored cell reveal, lower is faster
+PATH_REVEAL_DELAY_MS = 60  # slower than exploration, so the final path reads clearly
+reveal_timer = 0           # counts down to the next explored cell reveal
+path_reveal_timer = 0      # counts down to the next path cell reveal
 status_message = "Draw a maze, then click Run."  # shown in the UI panel, updates after every search
 status_color = (143, 166, 204)                     # neutral dim color until a search actually runs
 
 # Function to run the selected pathfinding algorithm and update the path and explored order
 def run_search():
-    global path, explored_order, reveal_index, path_reveal_index, animating, status_message, status_color
+    global path, explored_order, reveal_index, path_reveal_index, animating, status_message, status_color, reveal_timer, path_reveal_timer
     started = time.perf_counter()                      # timestamp before the algorithm runs
     if algorithm == "bfs":
         path, explored_order = bfs(grid_state.start, grid_state.end, grid_state.walls, ROWS, COLS)
@@ -39,6 +47,8 @@ def run_search():
 
     reveal_index = 0
     path_reveal_index = 0
+    reveal_timer = 0     # start revealing immediately, not after one full delay
+    path_reveal_timer = 0
     animating = True
 
     if path is None:
@@ -52,27 +62,34 @@ def run_search():
 # Main loop - runs until the user closes the window
 running = True
 while running:
+    dt = clock.tick(60)  # milliseconds since the last frame, also caps the frame rate at 60fps
+
     for event in pygame.event.get():        # all events since last frame, as one list
         if event.type == pygame.QUIT:       # fires only on the window's X button
             running = False                 # loop exits cleanly on its next check, not mid-frame
         elif event.type == pygame.MOUSEBUTTONDOWN: # Triggers when mouse click is pressed
             clicked_button = False
             # Check if any tool button was clicked
-            for b in TOOL_BUTTONS:
+            for b in ui.TOOL_BUTTONS:
                 if b["rect"].collidepoint(event.pos):
                     grid_state.tool = b["tool"]     # no global needed, mutating the module, not a local name
                     clicked_button = True
+            # Check if Start or End was clicked
+            for b in ui.ACTION_BUTTONS:
+                if b["rect"].collidepoint(event.pos):
+                    grid_state.tool = b["tool"]
+                    clicked_button = True
             # Check if any algorithm button was clicked
-            for b in ALGO_BUTTONS:
+            for b in ui.ALGO_BUTTONS:
                 if b["rect"].collidepoint(event.pos):
                     algorithm = b["algo"]
                     clicked_button = True
             # Check if the run button was clicked
-            if RUN_BUTTON.collidepoint(event.pos):
+            if ui.RUN_BUTTON.collidepoint(event.pos):
                 run_search()
                 clicked_button = True
             # If no button was clicked, check if the click was on the grid to start painting
-            if not clicked_button and event.pos[1] < GRID_HEIGHT:   # only paint if the click actually hit the grid
+            if not clicked_button and event.pos[1] < ui.GRID_HEIGHT:   # only paint if the click actually hit the grid
                 painting = True
                 apply_tool(cell_at_pixel(event.pos))
         elif event.type == pygame.MOUSEBUTTONUP: # Triggers when mouse click is released
@@ -80,31 +97,18 @@ while running:
         elif event.type == pygame.MOUSEMOTION: # Mouse motion monitors user movement while mouse click is held down
             if painting: # Guard for mouse motion events, only apply tool if mouse click is held
                 apply_tool(cell_at_pixel(event.pos)) 
-        elif event.type == pygame.KEYDOWN: # keyboard events for tool selection
-            if event.key == pygame.K_w: # wall tool
-                grid_state.tool = "wall"
-            elif event.key == pygame.K_m: # mud tool
-                grid_state.tool = "mud"
-            elif event.key == pygame.K_x: # erase tool
-                grid_state.tool = "erase"
-            elif event.key == pygame.K_s: # start point tool
-                grid_state.tool = "start"
-            elif event.key == pygame.K_e:  # end point tool
-                grid_state.tool = "end"
-            elif event.key == pygame.K_1: # select BFS algorithm
-                algorithm = "bfs"
-            elif event.key == pygame.K_2: # select Dijkstra's algorithm
-                algorithm = "dijkstra"  
-            elif event.key == pygame.K_3:  # select A* algorithm
-                algorithm = "astar"
-            elif event.key == pygame.K_SPACE: # run the selected pathfinding algorithm
-                run_search()
 
-    if animating:  # If animation is in progress, increment the reveal indices
+    if animating:  # If animation is in progress, count down to the next reveal
         if reveal_index < len(explored_order):
-            reveal_index = min(len(explored_order), reveal_index + max(1, len(explored_order) // 60)) # Increment reveal_index by a fraction of the total explored cells, but at least 1
+            reveal_timer -= dt
+            if reveal_timer <= 0:
+                reveal_index += 1
+                reveal_timer = REVEAL_DELAY_MS
         elif path and path_reveal_index < len(path):
-            path_reveal_index = min(len(path), path_reveal_index + max(1, len(path) // 30))  # Increment path_reveal_index by a fraction of the total path cells, but at least 1
+            path_reveal_timer -= dt
+            if path_reveal_timer <= 0:
+                path_reveal_index += 1
+                path_reveal_timer = PATH_REVEAL_DELAY_MS
         else:
             animating = False  # Stop animation when all cells are revealed
 
@@ -137,18 +141,28 @@ while running:
         points = [(c * CELL_SIZE + CELL_SIZE // 2, r * CELL_SIZE + CELL_SIZE // 2) for r, c in path[:path_reveal_index]] # convert grid coordinates to pixel coordinates
         pygame.draw.lines(screen, (242, 184, 75), False, points, width=4) # draw the path in amber color
 
-    draw_panel_background(screen)   # background and divider line for the whole toolbar strip
+    ui.draw_panel_background(screen)
 
     mouse_pos = pygame.mouse.get_pos()   # checked once per frame, reused for every button's hover check
-    for b in TOOL_BUTTONS:
-        hovering = b["rect"].collidepoint(mouse_pos)
-        draw_button(screen, font, b["rect"], b["label"], grid_state.tool == b["tool"], hovering)
-    for b in ALGO_BUTTONS:
-        hovering = b["rect"].collidepoint(mouse_pos)
-        draw_button(screen, font, b["rect"], b["label"], algorithm == b["algo"], hovering)
-    draw_button(screen, font, RUN_BUTTON, "Run", False, RUN_BUTTON.collidepoint(mouse_pos))
 
-    draw_status(screen, font, status_message, status_color)
+    ui.draw_heading(screen, heading_font, "Tools", ui.TOOLS_HEADING_Y)
+    for b in ui.TOOL_BUTTONS:
+        hovering = b["rect"].collidepoint(mouse_pos)
+        ui.draw_button(screen, font, b["rect"], b["label"], grid_state.tool == b["tool"], hovering)
+    ui.draw_blurb(screen, small_font, ui.get_blurb(ui.TOOL_BUTTONS, "tool", grid_state.tool), ui.TOOLS_BLURB_Y)
+
+    ui.draw_heading(screen, heading_font, "Pathfinding Algorithms", ui.ALGO_HEADING_Y)
+    for b in ui.ALGO_BUTTONS:
+        hovering = b["rect"].collidepoint(mouse_pos)
+        ui.draw_button(screen, font, b["rect"], b["label"], algorithm == b["algo"], hovering)
+    ui.draw_blurb(screen, small_font, ui.get_blurb(ui.ALGO_BUTTONS, "algo", algorithm), ui.ALGO_BLURB_Y)
+
+    for b in ui.ACTION_BUTTONS:
+        hovering = b["rect"].collidepoint(mouse_pos)
+        ui.draw_button(screen, font, b["rect"], b["label"], grid_state.tool == b["tool"], hovering)
+    ui.draw_run_button(screen, font, ui.RUN_BUTTON, ui.RUN_BUTTON.collidepoint(mouse_pos))
+
+    ui.draw_status(screen, small_font, status_message, status_color)
 
     pygame.display.flip()  # swaps the off-screen buffer onto the actual display
 
